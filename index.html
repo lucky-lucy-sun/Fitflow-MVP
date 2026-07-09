@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>FitFlow - AI智能搭配与虚拟试穿</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; background:#f0f0f0; display:flex; justify-content:center; align-items:center; min-height:100vh; overflow:hidden; }
+.phone { width:390px; height:844px; background:#fff; border-radius:44px; box-shadow:0 20px 60px rgba(0,0,0,0.25); overflow:hidden; position:relative; display:flex; flex-direction:column; }
+.status-bar { height:44px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; font-size:13px; font-weight:600; color:#1a1a1a; flex-shrink:0; }
+.status-bar .time { position:absolute; left:0; right:0; text-align:center; pointer-events:none; }
+.status-bar .right { display:flex; gap:4px; align-items:center; z-index:1; margin-left:auto; }
+.screen { flex:1; overflow-y:auto; overflow-x:hidden; position:relative; display:none; -webkit-overflow-scrolling:touch; }
+.screen.active { display:block; }
+.screen::-webkit-scrollbar { display:none; }
+
+/* ====== NAV ====== */
+.nav-header { height:48px; display:flex; align-items:center; padding:0 16px; flex-shrink:0; position:relative; }
+.nav-header .back { width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; color:#666; border-radius:50%; transition:.2s; }
+.nav-header .back:hover { background:#f5f5f5; }
+.nav-header .title { position:absolute; left:50%; transform:translateX(-50%); font-size:16px; font-weight:600; color:#1a1a1a; white-space:nowrap; }
+.nav-header .right-btn { position:absolute; right:16px; font-size:13px; color:#E85D4A; cursor:pointer; }
+
+/* ====== BOTTOM NAV ====== */
+.bottom-nav { height:64px; display:flex; align-items:center; justify-content:space-around; border-top:1px solid #f0f0f0; background:#fff; flex-shrink:0; }
+.bottom-nav-item { display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; color:#999; transition:.2s; font-size:10px; }
+.bottom-nav-item svg { width:22px; height:22px; stroke-width:1.8; }
+.bottom-nav-item.active { color:#E85D4A; }
+
+/* ====== COLORS & UTILS ====== */
+.c-primary { color:#E85D4A; }
+.bg-primary { background:#E85D4A; }
+.btn-primary { width:100%; height:48px; background:#E85D4A; color:#fff; border:none; border-radius:24px; font-size:16px; font-weight:500; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:.2s; }
+.btn-primary:active { transform:scale(0.98); opacity:.9; }
+.btn-primary:disabled { background:#ccc; }
+.btn-secondary { width:100%; height:48px; background:#fff; color:#E85D4A; border:1.5px solid #E85D4A; border-radius:24px; font-size:16px; font-weight:500; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:.2s; }
+.btn-text { background:none; border:none; color:#E85D4A; font-size:14px; cursor:pointer; padding:8px 12px; }
+.tag { display:inline-flex; align-items:center; padding:4px 10px; border-radius:12px; font-size:11px; background:#FFF0ED; color:#E85D4A; }
+.tag-outline { border:1px solid #E85D4A; background:transparent; }
+.card { background:#fff; border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+.section-title { font-size:18px; font-weight:700; color:#1a1a1a; margin-bottom:12px; }
+
+/* ====== SCREEN 1: HOME ====== */
+#screen-home { background:#fff; }
+.home-logo-area { height:45%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
+.home-logo { width:120px; height:120px; background:#E85D4A; border-radius:28px; display:flex; align-items:center; justify-content:center; box-shadow:0 12px 32px rgba(232,93,74,0.35); }
+.home-logo svg { width:60px; height:60px; stroke:#fff; stroke-width:2.5; fill:none; }
+.brand-name { font-size:36px; font-weight:800; letter-spacing:2px; color:#1a1a1a; }
+.brand-sub { font-size:14px; color:#888; letter-spacing:6px; text-transform:uppercase; }
+.home-slogan { text-align:center; padding:0 40px; }
+.home-slogan h2 { font-size:22px; font-weight:700; color:#1a1a1a; line-height:1.4; margin-bottom:8px; }
+.home-slogan p { font-size:14px; color:#888; line-height:1.6; }
+.home-actions { padding:0 32px 40px; display:flex; flex-direction:column; gap:12px; margin-top:auto; }
+.home-features { display:flex; justify-content:center; gap:32px; padding:20px 0; }
+.home-features .feat { text-align:center; }
+.home-features .feat svg { width:28px; height:28px; stroke:#E85D4A; stroke-width:1.5; fill:none; margin-bottom:4px; }
+.home-features .feat span { font-size:11px; color:#666; }
+
+/* ====== SCREEN 2: GUIDE ====== */
+.guide-content { padding:20px 24px; }
+.guide-step { display:flex; gap:16px; margin-bottom:28px; }
+.guide-step-num { width:36px; height:36px; background:#E85D4A; color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; flex-shrink:0; }
+.guide-step-text h4 { font-size:16px; font-weight:600; margin-bottom:4px; color:#1a1a1a; }
+.guide-step-text p { font-size:13px; color:#888; line-height:1.5; }
+.guide-img { width:100%; height:200px; border-radius:16px; overflow:hidden; margin-bottom:12px; }
+.guide-img img { width:100%; height:100%; object-fit:cover; }
+
+/* ====== SCREEN 3: LOGIN ====== */
+.login-content { padding:40px 28px; }
+.login-logo { text-align:center; margin-bottom:32px; }
+.login-logo .logo-icon { width:64px; height:64px; background:#E85D4A; border-radius:16px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:12px; }
+.login-logo h2 { font-size:24px; font-weight:700; }
+.login-logo p { font-size:13px; color:#888; margin-top:4px; }
+.input-group { margin-bottom:16px; }
+.input-group label { display:block; font-size:13px; color:#666; margin-bottom:6px; }
+.input-group input { width:100%; height:48px; border:1px solid #e5e5e5; border-radius:12px; padding:0 16px; font-size:15px; outline:none; transition:.2s; }
+.input-group input:focus { border-color:#E85D4A; }
+.input-group .input-hint { font-size:12px; color:#999; margin-top:4px; }
+.divider { display:flex; align-items:center; gap:12px; margin:20px 0; color:#ccc; font-size:12px; }
+.divider::before,.divider::after { content:''; flex:1; height:1px; background:#e5e5e5; }
+.social-login { display:flex; gap:12px; justify-content:center; }
+.social-btn { width:48px; height:48px; border-radius:50%; border:1px solid #e5e5e5; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; }
+
+/* ====== SCREEN 4: PROFILE ====== */
+.profile-content { padding:0 20px 20px; }
+.profile-avatar { text-align:center; padding:20px 0; }
+.avatar-circle { width:80px; height:80px; border-radius:50%; background:#FFF0ED; display:inline-flex; align-items:center; justify-content:center; font-size:32px; color:#E85D4A; margin-bottom:8px; }
+.privacy-banner { background:#FFF8E6; border:1px solid #FFE4A1; border-radius:12px; padding:12px 16px; display:flex; align-items:center; gap:10px; margin-bottom:16px; font-size:13px; color:#B8860B; }
+.form-row { display:flex; gap:12px; }
+.form-row .input-group { flex:1; }
+.measure-visual { display:flex; align-items:center; gap:12px; margin:16px 0; padding:16px; background:#F8F8F8; border-radius:12px; }
+.measure-icon { width:60px; height:80px; background:#E85D4A; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.measure-icon svg { width:36px; height:36px; stroke:#fff; fill:none; stroke-width:1.5; }
+.measure-labels { flex:1; }
+.measure-labels .m-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #e5e5e5; font-size:13px; }
+.ai-photo-btn { display:flex; align-items:center; gap:10px; padding:14px 16px; border:1.5px dashed #E85D4A; border-radius:12px; cursor:pointer; margin-top:12px; transition:.2s; }
+.ai-photo-btn:hover { background:#FFF0ED; }
+.ai-photo-btn svg { width:24px; height:24px; stroke:#E85D4A; stroke-width:1.5; }
+.ai-photo-btn div { flex:1; }
+.ai-photo-btn div h4 { font-size:14px; font-weight:600; color:#1a1a1a; }
+.ai-photo-btn div p { font-size:12px; color:#888; }
+
+/* ====== SCREEN 5: STYLE QUIZ ====== */
+.style-header { padding:0 20px 12px; }
+.style-header h3 { font-size:18px; font-weight:700; }
+.style-header p { font-size:13px; color:#888; margin-top:2px; }
+.style-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:0 16px 20px; }
+.style-card { aspect-ratio:1; border-radius:16px; overflow:hidden; position:relative; cursor:pointer; border:2px solid transparent; transition:.2s; }
+.style-card:hover { transform:scale(1.03); }
+.style-card.selected { border-color:#E85D4A; }
+.style-card img { width:100%; height:100%; object-fit:cover; }
+.style-card .style-name { position:absolute; bottom:0; left:0; right:0; padding:8px; background:rgba(0,0,0,0.5); color:#fff; font-size:11px; font-weight:500; text-align:center; }
+.style-card .check-mark { position:absolute; top:6px; right:6px; width:20px; height:20px; background:#E85D4A; border-radius:50%; display:none; align-items:center; justify-content:center; }
+.style-card.selected .check-mark { display:flex; }
+.style-card .check-mark svg { width:12px; height:12px; stroke:#fff; stroke-width:3; }
+
+/* ====== SCREEN 6: STYLE DETAIL ====== */
+.style-hero { width:100%; height:320px; position:relative; }
+.style-hero img { width:100%; height:100%; object-fit:cover; }
+.style-hero .gradient-overlay { position:absolute; bottom:0; left:0; right:0; height:120px; background:linear-gradient(transparent,rgba(0,0,0,0.7)); }
+.style-hero-info { position:absolute; bottom:16px; left:16px; right:16px; color:#fff; }
+.style-hero-info h2 { font-size:24px; font-weight:700; margin-bottom:4px; }
+.style-hero-info .tags { display:flex; gap:6px; flex-wrap:wrap; }
+.style-hero-info .tags span { padding:3px 10px; background:rgba(255,255,255,0.2); backdrop-filter:blur(8px); border-radius:10px; font-size:11px; }
+.style-detail-content { padding:20px; }
+.style-detail-content h4 { font-size:16px; font-weight:600; margin-bottom:8px; color:#1a1a1a; }
+.style-detail-content p { font-size:14px; color:#666; line-height:1.7; margin-bottom:16px; }
+.color-dots { display:flex; gap:8px; margin-bottom:16px; }
+.color-dot { width:28px; height:28px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px #ddd; }
+.style-detail-content .btn-primary { margin-top:8px; }
+
+/* ====== SCREEN 7: RESULT ====== */
+.result-content { padding:20px; text-align:center; }
+.result-badge { width:80px; height:80px; background:#FFF0ED; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; margin-bottom:12px; }
+.result-badge svg { width:40px; height:40px; stroke:#E85D4A; stroke-width:2; fill:none; }
+.result-content h3 { font-size:20px; font-weight:700; margin-bottom:4px; }
+.result-content .style-tag { display:inline-block; padding:6px 16px; background:#E85D4A; color:#fff; border-radius:16px; font-size:14px; font-weight:500; margin-bottom:8px; }
+.result-content > p { font-size:13px; color:#888; margin-bottom:16px; }
+.trend-card { background:#F8F8F8; border-radius:16px; padding:16px; text-align:left; margin-bottom:12px; }
+.trend-card h5 { font-size:14px; font-weight:600; margin-bottom:8px; }
+.trend-items { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; }
+.trend-items::-webkit-scrollbar { display:none; }
+.trend-item { flex-shrink:0; width:80px; text-align:center; }
+.trend-item img { width:80px; height:80px; border-radius:12px; object-fit:cover; margin-bottom:4px; }
+.trend-item span { font-size:11px; color:#666; }
+
+/* ====== SCREEN 8: OUTFIT REC ====== */
+.outfit-content { padding:0 16px 16px; }
+.outfit-header { padding:12px 4px; }
+.outfit-header h3 { font-size:18px; font-weight:700; }
+.outfit-header p { font-size:13px; color:#888; }
+.outfit-card { background:#fff; border-radius:20px; overflow:hidden; margin-bottom:16px; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+.outfit-card .outfit-img { width:100%; height:240px; position:relative; }
+.outfit-card .outfit-img img { width:100%; height:100%; object-fit:cover; }
+.outfit-card .match-badge { position:absolute; top:12px; right:12px; background:rgba(232,93,74,0.9); color:#fff; padding:4px 12px; border-radius:12px; font-size:12px; font-weight:600; }
+.outfit-card .outfit-info { padding:16px; }
+.outfit-card .outfit-info h4 { font-size:16px; font-weight:600; margin-bottom:6px; }
+.outfit-card .outfit-info .outfit-tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.outfit-card .outfit-info .outfit-price { font-size:20px; font-weight:700; color:#E85D4A; margin-bottom:12px; }
+.outfit-card .outfit-info .outfit-actions { display:flex; gap:10px; }
+.outfit-card .outfit-info .outfit-actions button { flex:1; }
+.reason-tag { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:#E8F5E9; color:#2E7D32; border-radius:10px; font-size:11px; margin-top:8px; }
+.reason-tag svg { width:12px; height:12px; }
+
+/* ====== SCREEN 9: OUTFIT DETAIL ====== */
+.outfit-detail-img { width:100%; height:300px; position:relative; }
+.outfit-detail-img img { width:100%; height:100%; object-fit:cover; }
+.outfit-detail-content { padding:20px; }
+.outfit-detail-content h3 { font-size:20px; font-weight:700; margin-bottom:8px; }
+.outfit-detail-content .price-row { display:flex; align-items:baseline; gap:8px; margin-bottom:16px; }
+.outfit-detail-content .price-row .price { font-size:24px; font-weight:700; color:#E85D4A; }
+.outfit-detail-content .price-row .original { font-size:14px; color:#ccc; text-decoration:line-through; }
+.item-list { margin-bottom:16px; }
+.item-list h5 { font-size:14px; font-weight:600; margin-bottom:10px; }
+.item-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f5f5f5; }
+.item-row input[type="checkbox"] { width:20px; height:20px; accent-color:#E85D4A; }
+.item-row img { width:48px; height:48px; border-radius:10px; object-fit:cover; flex-shrink:0; }
+.item-row .item-info { flex:1; }
+.item-row .item-info h6 { font-size:14px; font-weight:500; }
+.item-row .item-info p { font-size:12px; color:#888; }
+.item-row .item-price { font-size:14px; font-weight:600; }
+.item-row .replace-btn { font-size:12px; color:#E85D4A; cursor:pointer; padding:4px 8px; border-radius:6px; background:#FFF0ED; }
+
+/* ====== SCREEN 10: FITTING 3D ====== */
+.fitting-view { flex:1; position:relative; background:#F5F5F5; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.fitting-view img { max-width:100%; max-height:100%; object-fit:contain; }
+.fitting-controls { position:absolute; bottom:20px; left:20px; right:20px; display:flex; justify-content:center; gap:12px; }
+.fitting-ctrl-btn { width:48px; height:48px; background:rgba(255,255,255,0.9); backdrop-filter:blur(10px); border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.1); border:none; }
+.fitting-ctrl-btn svg { width:20px; height:20px; stroke:#333; stroke-width:2; fill:none; }
+.fabric-btn { position:absolute; bottom:20px; left:20px; padding:8px 14px; background:rgba(255,255,255,0.9); backdrop-filter:blur(10px); border-radius:20px; font-size:12px; color:#333; cursor:pointer; border:none; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+.fitting-bar { padding:16px 20px; background:#fff; }
+.fitting-bar h4 { font-size:16px; font-weight:600; margin-bottom:4px; }
+.fitting-bar p { font-size:13px; color:#888; margin-bottom:12px; }
+
+/* ====== SCREEN 11: REPLACE MODAL ====== */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:flex-end; justify-content:center; z-index:1000; }
+.modal-overlay.active { display:flex; }
+.modal-sheet { width:390px; background:#fff; border-radius:24px 24px 0 0; max-height:70%; overflow-y:auto; padding:20px; animation:slideUp .3s ease; }
+@keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+.modal-sheet h4 { font-size:18px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; }
+.modal-sheet .close-x { width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; color:#999; }
+.replace-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.replace-item { text-align:center; cursor:pointer; }
+.replace-item img { width:100%; aspect-ratio:1; border-radius:12px; object-fit:cover; margin-bottom:6px; border:2px solid transparent; }
+.replace-item.selected img { border-color:#E85D4A; }
+.replace-item p { font-size:12px; color:#333; }
+.replace-item .r-price { font-size:12px; color:#E85D4A; font-weight:600; }
+
+/* ====== SCREEN 12: LANGUAGE INPUT ====== */
+.lang-content { padding:20px; }
+.lang-content h3 { font-size:20px; font-weight:700; margin-bottom:8px; }
+.lang-content > p { font-size:14px; color:#888; margin-bottom:20px; }
+.lang-examples { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+.lang-examples .ex-tag { padding:8px 14px; background:#F5F5F5; border-radius:20px; font-size:13px; color:#666; cursor:pointer; transition:.2s; }
+.lang-examples .ex-tag:hover { background:#FFF0ED; color:#E85D4A; }
+.lang-textarea { width:100%; min-height:120px; border:1px solid #e5e5e5; border-radius:16px; padding:16px; font-size:15px; resize:none; outline:none; transition:.2s; font-family:inherit; }
+.lang-textarea:focus { border-color:#E85D4A; }
+.ai-analyzing { display:none; text-align:center; padding:20px; }
+.ai-analyzing.active { display:block; }
+.ai-analyzing .spinner { width:40px; height:40px; border:3px solid #f0f0f0; border-top-color:#E85D4A; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 12px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ====== SCREEN 13: ORDER ====== */
+.order-content { padding:0 16px 16px; }
+.order-set { background:#FFF8F7; border-radius:16px; padding:16px; margin-bottom:16px; border:1px solid #FFE0DC; }
+.order-set h4 { font-size:15px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+.order-set h4 svg { width:18px; height:18px; stroke:#E85D4A; }
+.order-item { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid rgba(0,0,0,0.05); }
+.order-item:last-child { border-bottom:none; }
+.order-item input[type="checkbox"] { width:20px; height:20px; accent-color:#E85D4A; }
+.order-item img { width:50px; height:50px; border-radius:10px; object-fit:cover; }
+.order-item .oi-info { flex:1; }
+.order-item .oi-info h6 { font-size:14px; font-weight:500; }
+.order-item .oi-info .oi-meta { font-size:12px; color:#888; display:flex; gap:8px; margin-top:2px; }
+.order-item .oi-price { font-size:14px; font-weight:600; }
+.order-summary { background:#F8F8F8; border-radius:16px; padding:16px; margin-bottom:16px; }
+.summary-row { display:flex; justify-content:space-between; padding:6px 0; font-size:14px; }
+.summary-row.total { font-size:18px; font-weight:700; color:#E85D4A; border-top:1px solid #e5e5e5; margin-top:6px; padding-top:10px; }
+
+/* ====== SCREEN 14: SUCCESS ====== */
+.success-content { padding:60px 32px; text-align:center; }
+.success-icon { width:100px; height:100px; background:#E8F5E9; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; margin-bottom:20px; }
+.success-icon svg { width:48px; height:48px; stroke:#4CAF50; stroke-width:2.5; fill:none; }
+.success-content h3 { font-size:24px; font-weight:700; margin-bottom:8px; }
+.success-content p { font-size:14px; color:#888; margin-bottom:24px; }
+.success-details { background:#F8F8F8; border-radius:16px; padding:16px; text-align:left; margin-bottom:24px; }
+.success-details .sd-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:14px; }
+.success-details .sd-row:last-child { border-bottom:none; }
+
+/* ====== SCREEN 15: DISCOVER ====== */
+.discover-search { padding:12px 16px; }
+.search-bar { display:flex; align-items:center; gap:10px; background:#F5F5F5; border-radius:12px; padding:0 14px; height:44px; }
+.search-bar input { flex:1; border:none; background:transparent; font-size:14px; outline:none; }
+.discover-tags { display:flex; gap:8px; padding:0 16px 12px; overflow-x:auto; flex-wrap:nowrap; }
+.discover-tags::-webkit-scrollbar { display:none; }
+.discover-tags .dtag { padding:6px 14px; background:#F5F5F5; border-radius:16px; font-size:13px; white-space:nowrap; cursor:pointer; }
+.discover-tags .dtag.active { background:#E85D4A; color:#fff; }
+.discover-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:0 16px 16px; }
+.discover-item { border-radius:16px; overflow:hidden; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.04); cursor:pointer; }
+.discover-item img { width:100%; aspect-ratio:3/4; object-fit:cover; }
+.discover-item .di-info { padding:10px; }
+.discover-item .di-info h6 { font-size:13px; font-weight:500; }
+.discover-item .di-info p { font-size:12px; color:#E85D4A; font-weight:600; margin-top:2px; }
+
+/* ====== SCREEN 16: CART ====== */
+.cart-content { padding:0 16px 16px; }
+.cart-item { display:flex; gap:12px; padding:14px 0; border-bottom:1px solid #f5f5f5; }
+.cart-item img { width:70px; height:70px; border-radius:12px; object-fit:cover; flex-shrink:0; }
+.cart-item .ci-info { flex:1; }
+.cart-item .ci-info h6 { font-size:14px; font-weight:500; }
+.cart-item .ci-info .ci-meta { font-size:12px; color:#888; margin-top:2px; }
+.cart-item .ci-right { text-align:right; }
+.cart-item .ci-right .ci-price { font-size:15px; font-weight:600; color:#E85D4A; }
+.cart-item .ci-right .ci-qty { display:flex; align-items:center; gap:8px; margin-top:6px; }
+.cart-item .ci-right .ci-qty button { width:24px; height:24px; border-radius:50%; border:1px solid #ddd; background:#fff; cursor:pointer; }
+.cart-empty { text-align:center; padding:60px 20px; }
+.cart-empty svg { width:64px; height:64px; stroke:#ccc; stroke-width:1.5; fill:none; margin-bottom:12px; }
+
+/* ====== SCREEN 17: PROFILE CENTER ====== */
+.profile-header { padding:24px 20px; text-align:center; background:#FFF8F7; }
+.profile-header .ph-avatar { width:72px; height:72px; border-radius:50%; background:#E85D4A; display:inline-flex; align-items:center; justify-content:center; font-size:28px; color:#fff; margin-bottom:8px; }
+.profile-header h4 { font-size:18px; font-weight:600; }
+.profile-header p { font-size:13px; color:#888; }
+.profile-menu { padding:16px; }
+.menu-item { display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid #f5f5f5; cursor:pointer; }
+.menu-item:last-child { border-bottom:none; }
+.menu-item svg { width:22px; height:22px; stroke:#666; stroke-width:1.8; fill:none; }
+.menu-item span { flex:1; font-size:15px; }
+.menu-item .arrow { color:#ccc; font-size:14px; }
+
+/* ====== SCREEN 18: ORDERS ====== */
+.order-tabs { display:flex; padding:0 16px; border-bottom:1px solid #f5f5f5; }
+.order-tab { flex:1; text-align:center; padding:12px 0; font-size:14px; color:#888; cursor:pointer; position:relative; }
+.order-tab.active { color:#E85D4A; font-weight:500; }
+.order-tab.active::after { content:''; position:absolute; bottom:0; left:25%; right:25%; height:2px; background:#E85D4A; border-radius:1px; }
+.order-list { padding:16px; }
+.order-card { background:#fff; border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+.order-card .oc-header { display:flex; justify-content:space-between; margin-bottom:10px; }
+.order-card .oc-header .oc-id { font-size:13px; color:#888; }
+.order-card .oc-header .oc-status { font-size:13px; color:#E85D4A; font-weight:500; }
+.order-card .oc-items { display:flex; gap:10px; margin-bottom:10px; }
+.order-card .oc-items img { width:60px; height:60px; border-radius:10px; object-fit:cover; }
+.order-card .oc-footer { display:flex; justify-content:space-between; align-items:center; }
+.order-card .oc-footer .oc-total { font-size:14px; }
+.order-card .oc-footer .oc-total span { font-weight:600; color:#E85D4A; }
+
+/* ====== SCREEN 19: SETTINGS ====== */
+.settings-content { padding:16px; }
+.settings-group { margin-bottom:20px; }
+.settings-group h5 { font-size:13px; color:#888; text-transform:uppercase; margin-bottom:10px; padding-left:4px; }
+.settings-row { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid #f5f5f5; }
+.settings-row:last-child { border-bottom:none; }
+.settings-row label { font-size:15px; }
+.settings-row input[type="range"] { width:120px; accent-color:#E85D4A; }
+.settings-row select { padding:6px 12px; border-radius:8px; border:1px solid #e5e5e5; font-size:14px; outline:none; }
+.toggle { width:48px; height:28px; background:#ccc; border-radius:14px; position:relative; cursor:pointer; transition:.2s; }
+.toggle.on { background:#E85D4A; }
+.toggle::after { content:''; position:absolute; width:24px; height:24px; background:#fff; border-radius:50%; top:2px; left:2px; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.toggle.on::after { left:22px; }
+
+/* ====== SCREEN 20: FAVORITES ====== */
+.fav-content { padding:0 16px 16px; }
+.fav-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+.fav-item { position:relative; border-radius:16px; overflow:hidden; aspect-ratio:3/4; }
+.fav-item img { width:100%; height:100%; object-fit:cover; }
+.fav-item .fav-heart { position:absolute; top:10px; right:10px; width:32px; height:32px; background:rgba(255,255,255,0.9); border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.fav-item .fav-heart svg { width:16px; height:16px; stroke:#E85D4A; stroke-width:2; fill:#E85D4A; }
+
+/* ====== RESPONSIVE ====== */
+@media (max-width:430px) { .phone { width:100vw; height:100vh; border-radius:0; } }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span class="time" id="clock">9:41</span>
+    <div class="right">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7.46 3 3.34 4.78.29 7.67c-.18.18-.29.43-.29.71 0 .28.11.53.29.71l11 11c.39.39 1.02.39 1.41 0l11-11c.18-.18.29-.43.29-.71 0-.28-.11-.53-.29-.71C20.66 4.78 16.54 3 12 3z"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 1: HOME ====== -->
+  <div class="screen active" id="screen-home">
+    <div class="home-logo-area">
+      <div class="home-logo"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+      <div class="brand-name">FitFlow</div>
+      <div class="brand-sub">AI Stylist</div>
+    </div>
+    <div class="home-slogan">
+      <h2>AI帮你挑，穿上更好看</h2>
+      <p>智能搭配 + 3D虚拟试穿<br>告别选择困难，减少退货烦恼</p>
+    </div>
+    <div class="home-features">
+      <div class="feat"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span>智能搭配</span></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>3D试衣</span></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span>个性推荐</span></div>
+    </div>
+    <div class="home-actions">
+      <button class="btn-primary" onclick="goTo('screen-guide')">开启体验</button>
+      <button class="btn-secondary" onclick="goTo('screen-login')">已有账号，登录</button>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 2: GUIDE ====== -->
+  <div class="screen" id="screen-guide">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">新手指引</div><div class="right-btn" onclick="goTo('screen-login')">跳过</div></div>
+    <div class="guide-content">
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text"><h4>创建身材档案</h4><p>输入三围数据或AI拍照识别，让推荐更精准</p></div></div>
+      <div class="guide-img"><img src="screens/style_quiz.png" alt=""></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text"><h4>选择风格偏好</h4><p>从12种细分风格中挑选，AI了解你的审美</p></div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text"><h4>获取搭配推荐</h4><p>AI生成5套专属搭配，3D试穿后一键下单</p></div></div>
+      <div style="height:20px;"></div>
+      <button class="btn-primary" onclick="goTo('screen-login')">知道了，开始吧</button>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 3: LOGIN ====== -->
+  <div class="screen" id="screen-login">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">登录</div></div>
+    <div class="login-content">
+      <div class="login-logo"><div class="logo-icon"><svg width="32" height="32" viewBox="0 0 24 24" stroke="#fff" stroke-width="2" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><h2>欢迎回来</h2><p>登录后继续你的时尚之旅</p></div>
+      <div class="input-group"><label>手机号</label><input type="tel" placeholder="请输入手机号" value="138****8888"></div>
+      <div class="input-group"><label>验证码</label><input type="text" placeholder="请输入验证码" value="123456"><p class="input-hint">已发送验证码，60s后可重发</p></div>
+      <button class="btn-primary" onclick="goTo('screen-profile')">登录</button>
+      <div class="divider">或</div>
+      <div class="social-login">
+        <div class="social-btn" style="color:#07C160;">&#119808;</div>
+        <div class="social-btn" style="color:#1677FF;">&#119809;</div>
+        <div class="social-btn" style="color:#EA4335;">G</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 4: PROFILE ====== -->
+  <div class="screen" id="screen-profile">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">身材档案</div><div class="right-btn" onclick="goTo('screen-style-quiz')">下一步</div></div>
+    <div class="profile-content">
+      <div class="profile-avatar"><div class="avatar-circle">&#128100;</div><p style="font-size:13px;color:#888;"> FitFlow 用户</p></div>
+      <div class="privacy-banner"><svg width="18" height="18" viewBox="0 0 24 24" stroke="#B8860B" stroke-width="2" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> 你的身材数据仅用于AI推荐，不会共享给第三方</div>
+      <div class="form-row">
+        <div class="input-group"><label>身高 (cm)</label><input type="number" value="165"></div>
+        <div class="input-group"><label>体重 (kg)</label><input type="number" value="52"></div>
+      </div>
+      <div class="input-group"><label>胸围 (cm)</label><input type="number" value="84" placeholder="例如：84"></div>
+      <div class="input-group"><label>腰围 (cm)</label><input type="number" value="66" placeholder="例如：66"></div>
+      <div class="input-group"><label>臀围 (cm)</label><input type="number" value="88" placeholder="例如：88"></div>
+      <div class="measure-visual">
+        <div class="measure-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M12 11v10M8 15h8"/></svg></div>
+        <div class="measure-labels">
+          <div class="m-row"><span>&#128085; 胸围</span><strong>84cm</strong></div>
+          <div class="m-row"><span>&#128090; 腰围</span><strong>66cm</strong></div>
+          <div class="m-row"><span>&#128091; 臀围</span><strong>88cm</strong></div>
+        </div>
+      </div>
+      <div class="ai-photo-btn" onclick="alert('AI拍照功能：调用摄像头自动识别三围数据')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M12 8V4m0 16v-4"/></svg>
+        <div><h4>AI拍照识别三围</h4><p>站在镜头前，自动测量身材数据</p></div>
+        <span style="color:#E85D4A;">&#8250;</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 5: STYLE QUIZ ====== -->
+  <div class="screen" id="screen-style-quiz">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">风格选择</div><div class="right-btn" onclick="goTo('screen-outfit')">完成</div></div>
+    <div class="style-header"><h3>选择你喜欢的风格</h3><p>可多选，AI将综合分析你的审美偏好（点击风格查看详情）</p></div>
+    <div class="style-grid">
+      <div class="style-card" onclick="selectStyle(this,'minimal')"><img src="screens/style_quiz.png" alt=""><div class="style-name">极简风</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+      <div class="style-card" onclick="selectStyle(this,'academic')"><div style="width:100%;height:100%;background:#E8D5C4;display:flex;align-items:center;justify-content:center;font-size:28px;">&#127891;</div><div class="style-name">学院风</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+      <div class="style-card" onclick="goTo('screen-style-detail')"><img src="screens/style_detail.png" alt=""><div class="style-name">法式风</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+      <div class="style-card" onclick="selectStyle(this,'workwear')"><div style="width:100%;height:100%;background:#B8C5D6;display:flex;align-items:center;justify-content:center;font-size:28px;">&#128085;</div><div class="style-name">美式工装</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+      <div class="style-card" onclick="selectStyle(this,'dark')"><div style="width:100%;height:100%;background:#2C2C2C;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;">&#127913;</div><div class="style-name">暗黑先锋</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+      <div class="style-card" onclick="selectStyle(this,'newchinese')"><div style="width:100%;height:100%;background:#8B0000;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;">&#127983;</div><div class="style-name">新中式</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+      <div class="style-card" onclick="selectStyle(this,'japanese')"><div style="width:100%;height:100%;background:#F5E6D3;display:flex;align-items:center;justify-content:center;font-size:28px;">&#127800;</div><div class="style-name">日系</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+      <div class="style-card" onclick="selectStyle(this,'street')"><div style="width:100%;height:100%;background:#333;display:flex;align-items:center;justify-content:center;font-size:28px;color:#0f0;">&#127936;</div><div class="style-name">街头</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+      <div class="style-card" onclick="selectStyle(this,'bohemian')"><div style="width:100%;height:100%;background:#D4A574;display:flex;align-items:center;justify-content:center;font-size:28px;">&#127796;</div><div class="style-name">波西米亚</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+      <div class="style-card" onclick="selectStyle(this,'business')"><div style="width:100%;height:100%;background:#4A5568;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;">&#128084;</div><div class="style-name">通勤商务</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+      <div class="style-card" onclick="selectStyle(this,'y2k')"><div style="width:100%;height:100%;background:#FF69B4;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;">&#10024;</div><div class="style-name">甜酷Y2K</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+      <div class="style-card" onclick="selectStyle(this,'oldmoney')"><div style="width:100%;height:100%;background:#C9B896;display:flex;align-items:center;justify-content:center;font-size:28px;">&#127941;</div><div class="style-name">老钱风</div><div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
+    </div>
+    <div style="padding:0 16px 20px;"><button class="btn-primary" onclick="goTo('screen-style-result')">AI分析我的风格</button></div>
+  </div>
+
+  <!-- ====== SCREEN 6: STYLE DETAIL ====== -->
+  <div class="screen" id="screen-style-detail">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">风格详情</div></div>
+    <div class="style-hero">
+      <img src="screens/style_detail.png" alt="法式风格">
+      <div class="gradient-overlay"></div>
+      <div class="style-hero-info">
+        <h2>法式风格</h2>
+        <div class="tags"><span>优雅浪漫</span><span>适合梨型/沙漏型</span><span>量感中等</span></div>
+      </div>
+    </div>
+    <div class="style-detail-content">
+      <h4>风格特点</h4>
+      <p>法式风格追求 effortless chic（毫不费力的时髦），特点是经典单品的巧妙组合。注重质感而非数量，偏好真丝、亚麻等天然面料。色彩以中性色为主，点缀少量亮色。</p>
+      <h4>推荐色彩</h4>
+      <div class="color-dots"><div class="color-dot" style="background:#1a1a1a;"></div><div class="color-dot" style="background:#fff;border:1px solid #ddd;"></div><div class="color-dot" style="background:#B8860B;"></div><div class="color-dot" style="background:#C41E3A;"></div><div class="color-dot" style="background:#4A6741;"></div><div class="color-dot" style="background:#D4A574;"></div></div>
+      <h4>适合体型</h4>
+      <p>梨型、沙漏型身材最为适合。A字裙、直筒裤、修身西装外套是标志性单品。</p>
+      <h4>代表单品</h4>
+      <p>条纹衫、风衣、芭蕾平底鞋、丝巾、高腰牛仔裤、简约连衣裙</p>
+      <button class="btn-primary" onclick="goBack()">选择这个风格</button>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 7: STYLE RESULT ====== -->
+  <div class="screen" id="screen-style-result">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">分析结果</div></div>
+    <div class="result-content">
+      <div class="result-badge"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+      <h3>你的专属风格画像</h3>
+      <span class="style-tag">法式优雅 + 极简通勤</span>
+      <p>基于你的选择，AI识别出你偏好优雅精致的风格<br>同时注重实用性与高级感</p>
+      <div class="trend-card">
+        <h5>为你推荐的趋势</h5>
+        <div class="trend-items">
+          <div class="trend-item"><div style="width:80px;height:80px;background:#E8D5C4;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;">&#128087;</div><span>静奢风</span></div>
+          <div class="trend-item"><div style="width:80px;height:80px;background:#D4A574;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;">&#129509;</div><span>老钱风</span></div>
+          <div class="trend-item"><div style="width:80px;height:80px;background:#B8C5D6;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;">&#128085;</div><span>通勤风</span></div>
+          <div class="trend-item"><div style="width:80px;height:80px;background:#F5E6D3;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;">&#127800;</div><span>日系风</span></div>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="goTo('screen-outfit')">查看AI搭配推荐</button>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 8: OUTFIT REC ====== -->
+  <div class="screen" id="screen-outfit">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">AI搭配推荐</div><div class="right-btn" onclick="goTo('screen-lang-input')">&#9998;</div></div>
+    <div class="outfit-content">
+      <div class="outfit-header"><h3>为你精选的5套搭配</h3><p>基于你的身材数据和风格偏好</p></div>
+      <div class="outfit-card" onclick="goTo('screen-outfit-detail')">
+        <div class="outfit-img"><img src="screens/outfit_recommend.png" alt=""><div class="match-badge">95%匹配</div></div>
+        <div class="outfit-info">
+          <h4>法式优雅通勤套装</h4>
+          <div class="outfit-tags"><span class="tag">法式</span><span class="tag">通勤</span><span class="tag">商务</span></div>
+          <div class="outfit-price">¥899 <span style="font-size:13px;color:#ccc;text-decoration:line-through;">¥1299</span></div>
+          <div class="outfit-actions"><button class="btn-primary" style="height:40px;font-size:14px;">查看详情</button><button class="btn-secondary" style="height:40px;font-size:14px;">3D试穿</button></div>
+          <div class="reason-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> 推荐理由：适合你的梨型身材和通勤场景</div>
+        </div>
+      </div>
+      <div class="outfit-card" onclick="goTo('screen-outfit-detail')">
+        <div class="outfit-img" style="background:#F5F5F5;display:flex;align-items:center;justify-content:center;"><div style="font-size:60px;">&#128090;</div><div class="match-badge">88%匹配</div></div>
+        <div class="outfit-info">
+          <h4>极简休闲周末套装</h4>
+          <div class="outfit-tags"><span class="tag">极简</span><span class="tag">休闲</span></div>
+          <div class="outfit-price">¥599</div>
+          <div class="outfit-actions"><button class="btn-primary" style="height:40px;font-size:14px;">查看详情</button><button class="btn-secondary" style="height:40px;font-size:14px;">3D试穿</button></div>
+          <div class="reason-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> 推荐理由：符合你的极简偏好和周末休闲需求</div>
+        </div>
+      </div>
+      <div class="outfit-card">
+        <div class="outfit-img" style="background:#E8D5C4;display:flex;align-items:center;justify-content:center;"><div style="font-size:60px;">&#128087;</div><div class="match-badge">82%匹配</div></div>
+        <div class="outfit-info">
+          <h4>温柔约会连衣裙套装</h4>
+          <div class="outfit-tags"><span class="tag">法式</span><span class="tag">约会</span></div>
+          <div class="outfit-price">¥699</div>
+          <div class="outfit-actions"><button class="btn-primary" style="height:40px;font-size:14px;">查看详情</button><button class="btn-secondary" style="height:40px;font-size:14px;">3D试穿</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 9: OUTFIT DETAIL ====== -->
+  <div class="screen" id="screen-outfit-detail">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">套装详情</div></div>
+    <div class="outfit-detail-img"><img src="screens/outfit_recommend.png" alt=""></div>
+    <div class="outfit-detail-content">
+      <h3>法式优雅通勤套装</h3>
+      <div class="price-row"><span class="price">¥899</span><span class="original">¥1299</span></div>
+      <div class="item-list">
+        <h5>套装包含单品（可自由替换）</h5>
+        <div class="item-row"><input type="checkbox" checked><img src="screens/fitting_room.png" alt=""><div class="item-info"><h6>卡其色风衣</h6><p>中长款 · 棉质混纺</p></div><span class="item-price">¥399</span><span class="replace-btn" onclick="showReplace()">&#8644; 替换</span></div>
+        <div class="item-row"><input type="checkbox" checked><div style="width:48px;height:48px;background:#F5F5F5;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;">&#128090;</div><div class="item-info"><h6>白色真丝衬衫</h6><p>修身款 · 真丝</p></div><span class="item-price">¥299</span><span class="replace-btn" onclick="showReplace()">&#8644; 替换</span></div>
+        <div class="item-row"><input type="checkbox" checked><div style="width:48px;height:48px;background:#333;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;">&#128086;</div><div class="item-info"><h6>高腰直筒西裤</h6><p>黑色 · 羊毛混纺</p></div><span class="item-price">¥199</span><span class="replace-btn" onclick="showReplace()">&#8644; 替换</span></div>
+        <div class="item-row"><input type="checkbox"><div style="width:48px;height:48px;background:#B8860B;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;">&#128096;</div><div class="item-info"><h6>尖头平底鞋</h6><p>裸色 · 羊皮</p></div><span class="item-price">¥199</span><span class="replace-btn" onclick="showReplace()">&#8644; 替换</span></div>
+      </div>
+      <button class="btn-primary" onclick="goTo('screen-fitting')">3D试穿</button>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 10: FITTING 3D ====== -->
+  <div class="screen" id="screen-fitting">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">3D试穿</div></div>
+    <div class="fitting-view"><img src="screens/fitting_room.png" alt="3D试穿"><button class="fabric-btn" onclick="alert('面料详情：\n卡其色风衣 - 棉质混纺\n白色衬衫 - 100%真丝\n黑色西裤 - 羊毛混纺')">&#128230; 面料详情</button></div>
+    <div class="fitting-controls">
+      <button class="fitting-ctrl-btn" onclick="alert('向左旋转')" title="向左旋转"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <button class="fitting-ctrl-btn" onclick="alert('向右旋转')" title="向右旋转"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+      <button class="fitting-ctrl-btn" onclick="alert('放大')" title="放大"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg></button>
+      <button class="fitting-ctrl-btn" onclick="alert('缩小')" title="缩小"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M8 11h6"/></svg></button>
+    </div>
+    <div class="fitting-bar">
+      <h4>法式优雅通勤套装</h4>
+      <p>旋转查看不同角度，点击面料按钮查看材质</p>
+      <button class="btn-primary" onclick="goTo('screen-order')">加入购物车</button>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 11: REPLACE MODAL ====== -->
+  <div class="modal-overlay" id="replace-modal" onclick="if(event.target===this)hideReplace()">
+    <div class="modal-sheet">
+      <h4>替换单品 <span class="close-x" onclick="hideReplace()">&#10005;</span></h4>
+      <p style="font-size:13px;color:#888;margin-bottom:12px;">选择一件替换当前单品</p>
+      <div class="replace-grid">
+        <div class="replace-item selected"><div style="width:100%;aspect-ratio:1;background:#C4A77D;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;">&#128090;</div><p>原款风衣</p><p class="r-price">¥399</p></div>
+        <div class="replace-item"><div style="width:100%;aspect-ratio:1;background:#8B7355;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;">&#128090;</div><p>深咖风衣</p><p class="r-price">¥459</p></div>
+        <div class="replace-item"><div style="width:100%;aspect-ratio:1;background:#D4C4A8;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;">&#128090;</div><p>米色风衣</p><p class="r-price">¥429</p></div>
+        <div class="replace-item"><div style="width:100%;aspect-ratio:1;background:#4A6741;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;">&#128090;</div><p>军绿风衣</p><p class="r-price">¥379</p></div>
+        <div class="replace-item"><div style="width:100%;aspect-ratio:1;background:#2C3E50;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;">&#128090;</div><p>藏蓝风衣</p><p class="r-price">¥499</p></div>
+        <div class="replace-item"><div style="width:100%;aspect-ratio:1;background:#000;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;">&#128090;</div><p>黑色风衣</p><p class="r-price">¥549</p></div>
+      </div>
+      <button class="btn-primary" style="margin-top:16px;" onclick="hideReplace()">确认替换</button>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 12: LANGUAGE INPUT ====== -->
+  <div class="screen" id="screen-lang-input">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">描述你的喜好</div></div>
+    <div class="lang-content">
+      <h3>用语言描述你喜欢的搭配</h3>
+      <p>告诉AI你今天的需求，AI会为你量身定制</p>
+      <div class="lang-examples">
+        <span class="ex-tag" onclick="fillLang('明天有个重要面试，想要看起来专业又有气质的搭配')">&#128188; 面试穿搭</span>
+        <span class="ex-tag" onclick="fillLang('周末约会，想要温柔浪漫一点的风格')">&#128149; 约会穿搭</span>
+        <span class="ex-tag" onclick="fillLang('平时上班穿的，要舒适但不要太随意')">&#128084; 日常通勤</span>
+        <span class="ex-tag" onclick="fillLang('明天要去参加婚礼，想要优雅大方的套装')">&#128144; 婚礼场合</span>
+        <span class="ex-tag" onclick="fillLang('想要显高的搭配，我个子比较娇小')">&#128131; 显高需求</span>
+      </div>
+      <textarea class="lang-textarea" id="langInput" placeholder="例如：明天有个重要客户见面，想要看起来干练又有女人味的搭配，不要太花哨..."></textarea>
+      <div style="height:12px;"></div>
+      <button class="btn-primary" onclick="analyzeLang()">AI分析需求</button>
+      <div class="ai-analyzing" id="aiAnalyzing">
+        <div class="spinner"></div>
+        <p>AI正在分析你的需求...</p>
+        <p style="font-size:12px;color:#888;">正在匹配风格标签 · 筛选适合单品 · 生成搭配方案</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 13: ORDER ====== -->
+  <div class="screen" id="screen-order">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">确认订单</div></div>
+    <div class="order-content">
+      <div class="order-set">
+        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> 法式优雅通勤套装</h4>
+        <div class="order-item"><input type="checkbox" checked><img src="screens/fitting_room.png" alt=""><div class="oi-info"><h6>卡其色风衣</h6><div class="oi-meta"><span>棉质混纺</span><span>中长款</span></div></div><span class="oi-price">¥399</span></div>
+        <div class="order-item"><input type="checkbox" checked><div style="width:50px;height:50px;background:#F5F5F5;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;">&#128090;</div><div class="oi-info"><h6>白色真丝衬衫</h6><div class="oi-meta"><span>100%真丝</span><span>修身款</span></div></div><span class="oi-price">¥299</span></div>
+        <div class="order-item"><input type="checkbox" checked><div style="width:50px;height:50px;background:#333;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;">&#128086;</div><div class="oi-info"><h6>高腰直筒西裤</h6><div class="oi-meta"><span>羊毛混纺</span><span>黑色</span></div></div><span class="oi-price">¥199</span></div>
+        <div class="order-item"><input type="checkbox"><div style="width:50px;height:50px;background:#B8860B;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;">&#128096;</div><div class="oi-info"><h6>尖头平底鞋</h6><div class="oi-meta"><span>羊皮</span><span>裸色</span></div></div><span class="oi-price">¥199</span></div>
+      </div>
+      <div class="order-summary">
+        <div class="summary-row"><span>商品总价</span><span>¥897</span></div>
+        <div class="summary-row"><span>套装优惠</span><span style="color:#E85D4A;">-¥100</span></div>
+        <div class="summary-row"><span>运费</span><span>免运费</span></div>
+        <div class="summary-row total"><span>应付总额</span><span>¥797</span></div>
+      </div>
+      <p style="font-size:12px;color:#888;margin-bottom:12px;">&#9432; 选中商品将立即发货，未选中商品可后续在"我的订单"中购买。7天无理由退货。</p>
+      <button class="btn-primary" onclick="goTo('screen-success')">确认下单</button>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 14: SUCCESS ====== -->
+  <div class="screen" id="screen-success">
+    <div class="success-content">
+      <div class="success-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <h3>下单成功！</h3>
+      <p>你的专属搭配正在路上<br>预计3-5个工作日送达</p>
+      <div class="success-details">
+        <div class="sd-row"><span>订单编号</span><span style="color:#888;">FF20250710001</span></div>
+        <div class="sd-row"><span>支付方式</span><span>微信支付</span></div>
+        <div class="sd-row"><span>实付金额</span><span style="color:#E85D4A;font-weight:600;">¥797</span></div>
+        <div class="sd-row"><span>配送地址</span><span style="color:#888;font-size:12px;">北京市朝阳区...</span></div>
+      </div>
+      <button class="btn-primary" onclick="goTo('screen-discover', true)" style="margin-bottom:12px;">继续逛逛</button>
+      <button class="btn-secondary" onclick="goTo('screen-orders', true)">查看订单</button>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 15: DISCOVER ====== -->
+  <div class="screen" id="screen-discover">
+    <div class="discover-search">
+      <div class="search-bar">
+        <svg width="18" height="18" viewBox="0 0 24 24" stroke="#999" stroke-width="2" fill="none"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="搜索风格、单品、搭配..."></div>
+    </div>
+    <div class="discover-tags">
+      <span class="dtag active">全部</span>
+      <span class="dtag">&#128087; 连衣裙</span>
+      <span class="dtag">&#128090; 外套</span>
+      <span class="dtag">&#128086; 裤装</span>
+      <span class="dtag">&#128096; 鞋履</span>
+      <span class="dtag">&#127872; 配饰</span>
+    </div>
+    <div class="discover-grid">
+      <div class="discover-item"><div style="width:100%;aspect-ratio:3/4;background:#E8D5C4;display:flex;align-items:center;justify-content:center;font-size:40px;">&#128087;</div><div class="di-info"><h6>法式茶歇裙</h6><p>¥299</p></div></div>
+      <div class="discover-item"><div style="width:100%;aspect-ratio:3/4;background:#B8C5D6;display:flex;align-items:center;justify-content:center;font-size:40px;">&#128090;</div><div class="di-info"><h6>条纹海魂衫</h6><p>¥159</p></div></div>
+      <div class="discover-item"><div style="width:100%;aspect-ratio:3/4;background:#D4A574;display:flex;align-items:center;justify-content:center;font-size:40px;">&#128086;</div><div class="di-info"><h6>高腰阔腿裤</h6><p>¥199</p></div></div>
+      <div class="discover-item"><div style="width:100%;aspect-ratio:3/4;background:#F5E6D3;display:flex;align-items:center;justify-content:center;font-size:40px;">&#128096;</div><div class="di-info"><h6>芭蕾平底鞋</h6><p>¥259</p></div></div>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 16: CART ====== -->
+  <div class="screen" id="screen-cart">
+    <div class="nav-header"><div class="title">购物车</div></div>
+    <div class="cart-content">
+      <div class="cart-item"><img src="screens/fitting_room.png" alt=""><div class="ci-info"><h6>卡其色风衣</h6><p class="ci-meta">中长款 · 棉质混纺 · M码</p></div><div class="ci-right"><div class="ci-price">¥399</div><div class="ci-qty"><button>-</button><span>1</span><button>+</button></div></div></div>
+      <div class="cart-item"><div style="width:70px;height:70px;background:#F5F5F5;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;">&#128090;</div><div class="ci-info"><h6>白色真丝衬衫</h6><p class="ci-meta">修身款 · 真丝 · S码</p></div><div class="ci-right"><div class="ci-price">¥299</div><div class="ci-qty"><button>-</button><span>1</span><button>+</button></div></div></div>
+      <div class="order-summary" style="margin-top:20px;">
+        <div class="summary-row"><span>商品总价</span><span>¥698</span></div>
+        <div class="summary-row"><span>运费</span><span>免运费</span></div>
+        <div class="summary-row total"><span>合计</span><span>¥698</span></div>
+      </div>
+      <button class="btn-primary" style="margin-top:16px;" onclick="goTo('screen-order')">去结算</button>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 17: PROFILE CENTER ====== -->
+  <div class="screen" id="screen-profile-center">
+    <div class="profile-header">
+      <div class="ph-avatar">&#128100;</div>
+      <h4>FitFlow 用户</h4>
+      <p>风格标签：法式优雅 · 极简通勤</p>
+    </div>
+    <div class="profile-menu">
+      <div class="menu-item" onclick="goTo('screen-orders')"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><span>我的订单</span><span class="arrow">&#8250;</span></div>
+      <div class="menu-item" onclick="goTo('screen-favorites')"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span>我的收藏</span><span class="arrow">&#8250;</span></div>
+      <div class="menu-item" onclick="goTo('screen-cart')"><svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><span>购物车</span><span class="arrow">&#8250;</span></div>
+      <div class="menu-item" onclick="goTo('screen-settings')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>偏好设置</span><span class="arrow">&#8250;</span></div>
+      <div class="menu-item"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span>帮助与反馈</span><span class="arrow">&#8250;</span></div>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 18: ORDERS ====== -->
+  <div class="screen" id="screen-orders">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">我的订单</div></div>
+    <div class="order-tabs">
+      <div class="order-tab active">全部</div>
+      <div class="order-tab">待发货</div>
+      <div class="order-tab">待收货</div>
+      <div class="order-tab">已完成</div>
+    </div>
+    <div class="order-list">
+      <div class="order-card">
+        <div class="oc-header"><span class="oc-id">订单号：FF20250710001</span><span class="oc-status">待发货</span></div>
+        <div class="oc-items"><img src="screens/fitting_room.png" alt=""><img src="screens/style_detail.png" alt=""></div>
+        <div class="oc-footer"><span class="oc-total">共2件 合计：<span>¥797</span></span><button class="btn-text">申请退款</button></div>
+      </div>
+      <div class="order-card">
+        <div class="oc-header"><span class="oc-id">订单号：FF20250708002</span><span class="oc-status" style="color:#4CAF50;">已完成</span></div>
+        <div class="oc-items"><div style="width:60px;height:60px;background:#E8D5C4;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;">&#128087;</div></div>
+        <div class="oc-footer"><span class="oc-total">共1件 合计：<span>¥299</span></span><button class="btn-text">再次购买</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 19: SETTINGS ====== -->
+  <div class="screen" id="screen-settings">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">偏好设置</div></div>
+    <div class="settings-content">
+      <div class="settings-group">
+        <h5>预算设置</h5>
+        <div class="settings-row"><label>单件价格上限</label><select><option>¥200</option><option selected>¥500</option><option>¥1000</option><option>不限</option></select></div>
+        <div class="settings-row"><label>单件价格下限</label><select><option>¥50</option><option selected>¥100</option><option>¥200</option><option>不限</option></select></div>
+      </div>
+      <div class="settings-group">
+        <h5>面料偏好</h5>
+        <div class="settings-row"><label>纯棉</label><div class="toggle on"></div></div>
+        <div class="settings-row"><label>真丝</label><div class="toggle on"></div></div>
+        <div class="settings-row"><label>羊毛</label><div class="toggle on"></div></div>
+        <div class="settings-row"><label>亚麻</label><div class="toggle"></div></div>
+        <div class="settings-row"><label>化纤</label><div class="toggle"></div></div>
+      </div>
+      <div class="settings-group">
+        <h5>季节筛选</h5>
+        <div class="settings-row"><label>春夏 (3-8月)</label><div class="toggle on"></div></div>
+        <div class="settings-row"><label>秋冬 (9-2月)</label><div class="toggle on"></div></div>
+      </div>
+      <div class="settings-group">
+        <h5>个性化</h5>
+        <div class="settings-row"><label>使用历史订单优化推荐</label><div class="toggle on"></div></div>
+        <div class="settings-row"><label>接收新品推荐通知</label><div class="toggle on"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== SCREEN 20: FAVORITES ====== -->
+  <div class="screen" id="screen-favorites">
+    <div class="nav-header"><div class="back" onclick="goBack()">&#8249;</div><div class="title">我的收藏</div></div>
+    <div class="fav-content">
+      <div class="fav-grid">
+        <div class="fav-item"><div style="width:100%;height:100%;background:#E8D5C4;display:flex;align-items:center;justify-content:center;font-size:40px;">&#128087;</div><div class="fav-heart"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div></div>
+        <div class="fav-item"><div style="width:100%;height:100%;background:#B8C5D6;display:flex;align-items:center;justify-content:center;font-size:40px;">&#128090;</div><div class="fav-heart"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div></div>
+        <div class="fav-item"><div style="width:100%;height:100%;background:#D4A574;display:flex;align-items:center;justify-content:center;font-size:40px;">&#128086;</div><div class="fav-heart"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div></div>
+        <div class="fav-item"><div style="width:100%;height:100%;background:#F5E6D3;display:flex;align-items:center;justify-content:center;font-size:40px;">&#128096;</div><div class="fav-heart"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== BOTTOM NAV (for tab screens) ====== -->
+  <div class="bottom-nav" id="bottomNav" style="display:none;">
+    <div class="bottom-nav-item active" onclick="switchTab('screen-discover')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <span>发现</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('screen-style-quiz')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <span>搭配</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('screen-fitting')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+      <span>试衣间</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('screen-cart')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      <span>购物车</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('screen-profile-center')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>我的</span>
+    </div>
+  </div>
+
+</div><!-- /phone -->
+
+<script>
+// ====== NAVIGATION ======
+let history_stack = ['screen-home'];
+let tabRoots = { 'screen-discover':true, 'screen-profile-center':true, 'screen-cart':true, 'screen-style-quiz':true, 'screen-fitting':true };
+
+function goTo(id, isTabRoot) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  history_stack.push(id);
+  updateBottomNav(id, isTabRoot);
+}
+
+function goBack() {
+  if (history_stack.length > 1) {
+    history_stack.pop();
+    let prev = history_stack[history_stack.length - 1];
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(prev).classList.add('active');
+    updateBottomNav(prev);
+  }
+}
+
+function switchTab(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  history_stack.push(id);
+  updateBottomNav(id, true);
+}
+
+function updateBottomNav(currentId, isTabRoot) {
+  const nav = document.getElementById('bottomNav');
+  if (tabRoots[currentId] || isTabRoot) {
+    nav.style.display = 'flex';
+  } else {
+    nav.style.display = 'none';
+  }
+  // Update active state
+  const tabMap = { 'screen-discover':0, 'screen-style-quiz':1, 'screen-fitting':2, 'screen-cart':3, 'screen-profile-center':4 };
+  if (tabMap[currentId] !== undefined) {
+    document.querySelectorAll('.bottom-nav-item').forEach((item, i) => {
+      item.classList.toggle('active', i === tabMap[currentId]);
+    });
+  }
+}
+
+// ====== STYLE SELECTION ======
+function selectStyle(el) {
+  el.classList.toggle('selected');
+}
+
+// ====== REPLACE MODAL ======
+function showReplace() {
+  document.getElementById('replace-modal').classList.add('active');
+}
+function hideReplace() {
+  document.getElementById('replace-modal').classList.remove('active');
+}
+
+// ====== LANGUAGE INPUT ======
+function fillLang(text) {
+  document.getElementById('langInput').value = text;
+}
+function analyzeLang() {
+  document.getElementById('aiAnalyzing').classList.add('active');
+  setTimeout(() => {
+    document.getElementById('aiAnalyzing').classList.remove('active');
+    goTo('screen-outfit');
+  }, 2000);
+}
+
+// ====== TOGGLE ======
+document.querySelectorAll('.toggle').forEach(t => {
+  t.addEventListener('click', () => t.classList.toggle('on'));
+});
+
+// ====== CLOCK ======
+setInterval(() => {
+  const d = new Date();
+  document.getElementById('clock').textContent = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+}, 1000);
+</script>
+
+</body>
+</html>
